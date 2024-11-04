@@ -1,33 +1,22 @@
 import express from "express";
 const app = express();
-const port = 3000;
+const port = 8000;
 import bodyParser from "body-parser";
 import pg from "pg";
 
 app.use(express.static("public"));
 app.use(bodyParser.urlencoded({extended: true}));
-
-app.get("/create", (req, res) => {
-    res.render("create.ejs");
-});
-
-app.get("/signup", (req, res) => {
-    res.render("signup.ejs", {error: null});
-});
-
-app.get("/signin", (req, res) => {
-    res.render("signin.ejs", {error: null});
-});
+app.use(express.json());
 
 const db = new pg.Client({
-user: "postgres",
-host: "localhost",
-database: "blogDB",
-password: "F3rd1n4ndP0rch3",
-port: 5442,
-});
-
-db.connect();
+    user: "postgres",
+    host: "localhost",
+    database: "blogDB",
+    password: "F3rd1n4ndP0rch3",
+    port: 5442,
+    });
+    
+    db.connect();
 
 app.post("/signup", async (req, res) => {
     const namesignup = req.body.nameu;
@@ -38,19 +27,17 @@ app.post("/signup", async (req, res) => {
         const check = await db.query('SELECT * FROM users WHERE user_id = $1', [idsignup]);
         if (check.rows.length > 0) {
             console.log(`Look at this guy ${namesignup}, who thinks he can steal some primary keys`);
-            return res.render("signup.ejs", {error: "This user_ID is already occupied! GET YOUR OWN"});
+            return res.json({error: "This user_ID is already occupied! GET YOUR OWN"});
         }
         await db.query('INSERT INTO users (name, password, user_id) VALUES ($1, $2, $3)',
             [namesignup, passwordsignup, idsignup]);
-            res.redirect("/signin");
+            res.json({message: "New User added"});
             console.log(`Welcome ${namesignup}, you are now cast into eternal apathy`);
     } catch (err) {
         console.error("NOTHING TO SEE HERE, MOVE ON");
-        return res.render("signup.ejs", {error: "Stop making the website explode >:("});
+        return res.json({error: "Stop making the website explode >:("});
     }
 });
-
-
 
 app.post("/signin", async (req, res) => {
     const idcheck = req.body.idi;
@@ -60,13 +47,24 @@ app.post("/signin", async (req, res) => {
         const check = await db.query('SELECT * FROM users WHERE user_id = $1 AND password = $2',
              [idcheck, passwordcheck]);
         if (check.rows.length === 0) {
-            return res.render("signin.ejs", {error: "Ye got yer id 'r pw wrong th're, matey"});
+            return res.json({error: "Ye got yer id 'r pw wrong th're, matey"});
         }
         console.log("Welcome back... Or rather, did you think you could ever leave? ha...hahaha...HAHAHAHAHAHAAAAAAHAHA");
-        res.redirect("/");
+        res.json({message: "We have a leak!"});
     } catch (err) {
         console.error("NOTHING TO SEE HERE, MOVE ON");
-        return res.render("signin.ejs", {error: "Stop making the website explode >:("});
+        return res.json({error: "Stop making the website explode >:("});
+    }
+});
+
+app.get("/posts", (req, res) => {
+    try {
+        db.query('SELECT * FROM blogs', (err, blogs) => {
+            const postedblogs = blogs.rows;
+            res.json({postedblogs});
+        });
+    } catch (err) {
+        ("Stop trying to make the website explode >:(", err)
     }
 });
 
@@ -79,16 +77,9 @@ app.post("/pblog", (req, res) => {
     db.query('INSERT INTO blogs (creator_name, title, body, date_created) VALUES ($1, $2, $3, $4)',
         [blogname, blogtitle, blogcontent, postedtime],
         () => {
-            res.redirect("/");
+            res.json({message: "More slop added"});
         }
     );
-});
-
-app.get("/", (req, res) => {
-    db.query('SELECT * FROM blogs', (err, blogs) => {
-        const postedblogs = blogs.rows;
-        res.render("index.ejs", {postedblogs});
-    });
 });
 
 app.post("/edit", (req, res) => {
@@ -99,7 +90,7 @@ app.post("/edit", (req, res) => {
     db.query('UPDATE blogs SET title = $1, creator_name = $2, body = $3 WHERE blog_id = $4',
         [blogtitle, blogname, blogcontent, PID]
     );
-    res.redirect("/");
+    res.json({message: "Post edited"});
 });
 
 app.post("/del", (req, res) => {
@@ -107,9 +98,9 @@ app.post("/del", (req, res) => {
     db.query('DELETE FROM blogs WHERE blog_id = $1',
         [PID]
     );
-    res.redirect("/");
+    res.json({message: "Post nuked"});
 });
 
 app.listen(port, () => {
-    console.log(`Check me out mom, I am on port ${port}`);
+    console.log(`We're live on port ${port}`);
 });
